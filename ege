@@ -1,0 +1,71 @@
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { base44 } from '@/api/base44Client';
+import { CheckCircle2, Loader2 } from 'lucide-react';
+
+export default function InviteDialog({ children }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleInvite = async () => {
+    if (!email.trim()) return;
+    setLoading(true);
+    await base44.users.inviteUser(email.trim(), 'user');
+    setLoading(false);
+    setDone(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    setEmail('');
+    setDone(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else setOpen(true); }}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-heading">Invite your co-parent</DialogTitle>
+        </DialogHeader>
+        {done ? (
+          <div className="py-6 flex flex-col items-center gap-3 text-center">
+            <CheckCircle2 className="w-10 h-10 text-green-500" />
+            <p className="font-medium">Invitation sent!</p>
+            <p className="text-sm text-muted-foreground">They'll receive an email to join PeaceParent.</p>
+            <Button onClick={handleClose} className="mt-2">Done</Button>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-3 py-2">
+              <div className="space-y-1.5">
+                <Label>Email address</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="co-parent@email.com"
+                  onKeyDown={e => e.key === 'Enter' && handleInvite()}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                They'll get an invite to join the app as a co-parent.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={handleClose}>Cancel</Button>
+              <Button disabled={!email.trim() || loading} onClick={handleInvite}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send invite'}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
