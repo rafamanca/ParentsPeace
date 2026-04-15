@@ -1,0 +1,37 @@
+import React from 'react';
+import { Card } from '@/components/ui/card';
+import { format, parseISO } from 'date-fns';
+import { nl } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+
+const moodMeta = {
+  great: { emoji: '😄', color: 'bg-green-100 dark:bg-green-900/30' },
+  good:  { emoji: '🙂', color: 'bg-blue-100 dark:bg-blue-900/30' },
+  okay:  { emoji: '😐', color: 'bg-yellow-100 dark:bg-yellow-900/30' },
+  tough: { emoji: '😟', color: 'bg-orange-100 dark:bg-orange-900/30' },
+  rough: { emoji: '😔', color: 'bg-red-100 dark:bg-red-900/30' },
+};
+
+export default function MoodHistory({ checkIns }) {
+  const recent = [...(checkIns || [])].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
+  if (!recent.length) return null;
+
+  return (
+    <div>
+      <h3 className="font-heading font-semibold text-base mb-3">Afgelopen week</h3>
+      <div className="flex gap-2">
+        {recent.map(c => {
+          const meta = moodMeta[c.mood] || moodMeta.okay;
+          return (
+            <div key={c.id} className={cn('flex-1 flex flex-col items-center gap-1 rounded-xl p-2 text-center', meta.color)}>
+              <span className="text-lg leading-none">{meta.emoji}</span>
+              <span className="text-[10px] text-muted-foreground">
+                {format(parseISO(c.date), 'EEE', { locale: nl })}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
