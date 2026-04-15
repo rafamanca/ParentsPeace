@@ -1,0 +1,32 @@
+{
+  "name": "CheckIn",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string"
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "great",
+        "good",
+        "okay",
+        "tough",
+        "rough"
+      ],
+      "default": "okay"
+    },
+    "note": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "user_email",
+    "mood",
+    "date"
+  ]
+}
