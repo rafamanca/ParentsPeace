@@ -1,0 +1,229 @@
+import React, { useState, useRef } from 'react';
+import { base44 } from '@/api/base44Client';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import PullToRefreshIndicator from '@/components/shared/PullToRefreshIndicator';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isSameMonth, addMonths, subMonths } from 'date-fns';
+import { nl } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+
+const colorMap = {
+  blue: 'bg-blue-500',
+  green: 'bg-green-500',
+  orange: 'bg-orange-500',
+  purple: 'bg-purple-500',
+  red: 'bg-red-500',
+};
+
+function AddEventDialog({ onAdd, defaultDate }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ title: '', date: defaultDate || '', time: '', description: '', color: 'blue' });
+
+  React.useEffect(() => {
+    setForm(f => ({ ...f, date: defaultDate || '' }));
+  }, [defaultDate]);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-1.5"><Plus className="w-4 h-4" />Afspraak</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle className="font-heading">Nieuwe afspraak</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5">
+            <Label>Titel</Label>
+            <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Bijv. Ophalen van school" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Datum</Label>
+              <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tijd</Label>
+              <Input type="time" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Omschrijving</Label>
+            <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Optioneel" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Kleur</Label>
+            <Select value={form.color} onValueChange={v => setForm({ ...form, color: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="blue">🔵 Blauw</SelectItem>
+                <SelectItem value="green">🟢 Groen</SelectItem>
+                <SelectItem value="orange">🟠 Oranje</SelectItem>
+                <SelectItem value="purple">🟣 Paars</SelectItem>
+                <SelectItem value="red">🔴 Rood</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Annuleren</Button>
+          <Button disabled={!form.title || !form.date} onClick={() => { onAdd(form); setOpen(false); }}>Opslaan</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function Calendar() {
+  const queryClient = useQueryClient();
+  const [month, setMonth] = useState(new Date());
+  const [selected, setSelected] = useState(null);
+
+  const { data: events = [] } = useQuery({
+    queryKey: ['events'],
+    queryFn: () => base44.entities.CalendarEvent.list('date', 200),
+  });
+
+  const createEvent = useMutation({
+    mutationFn: d => base44.entities.CalendarEvent.create(d),
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['events'] });
+      const prev = queryClient.getQueryData(['events']);
+      queryClient.setQueryData(['events'], (old = []) => [
+        ...old,
+        { ...data, id: `temp-${Date.now()}` },
+      ]);
+      return { prev };
+    },
+    onError: (_err, _data, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['events'], ctx.prev);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['events'] }),
+  });
+
+  const deleteEvent = useMutation({
+    mutationFn: id => base44.entities.CalendarEvent.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['events'] });
+      const prev = queryClient.getQueryData(['events']);
+      queryClient.setQueryData(['events'], (old = []) => old.filter(e => e.id !== id));
+      return { prev };
+    },
+    onError: (_err, _data, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['events'], ctx.prev);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['events'] }),
+  });
+
+  const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
+  const startPad = (getDay(startOfMonth(month)) + 6) % 7; // Mon-start
+
+  const selectedDateStr = selected ? format(selected, 'yyyy-MM-dd') : null;
+  const selectedEvents = events.filter(e => e.date === selectedDateStr);
+
+  const pageRef = useRef(null);
+  const { pullY } = usePullToRefresh({
+    onRefresh: () => queryClient.invalidateQueries({ queryKey: ['events'] }),
+    containerRef: pageRef,
+  });
+
+  return (
+    <div ref={pageRef}>
+      <PullToRefreshIndicator pullY={pullY} />
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold">Kalender</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Plan en deel afspraken</p>
+        </div>
+        <AddEventDialog
+          onAdd={createEvent.mutate}
+          defaultDate={selectedDateStr || format(new Date(), 'yyyy-MM-dd')}
+        />
+      </div>
+
+      <Card className="p-4 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="ghost" size="icon" onClick={() => setMonth(subMonths(month, 1))}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <h2 className="font-medium capitalize">{format(month, 'MMMM yyyy', { locale: nl })}</h2>
+          <Button variant="ghost" size="icon" onClick={() => setMonth(addMonths(month, 1))}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-px">
+          {['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map(d => (
+            <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
+          ))}
+          {Array(startPad).fill(null).map((_, i) => <div key={`pad-${i}`} />)}
+          {days.map(day => {
+            const dayStr = format(day, 'yyyy-MM-dd');
+            const dayEvents = events.filter(e => e.date === dayStr);
+            const isToday = isSameDay(day, new Date());
+            const isSelected = selected && isSameDay(day, selected);
+            return (
+              <button
+                key={dayStr}
+                onClick={() => setSelected(isSameDay(day, selected) ? null : day)}
+                className={cn(
+                  'relative p-1.5 rounded-lg text-sm transition-all hover:bg-muted flex flex-col items-center',
+                  isToday && 'font-bold text-primary',
+                  isSelected && 'bg-primary text-primary-foreground hover:bg-primary/90'
+                )}
+              >
+                <span>{format(day, 'd')}</span>
+                {dayEvents.length > 0 && (
+                  <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center">
+                    {dayEvents.slice(0, 3).map(e => (
+                      <div key={e.id} className={cn('w-1.5 h-1.5 rounded-full', colorMap[e.color] || 'bg-primary', isSelected && 'bg-white/80')} />
+                    ))}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      {selected && (
+        <div>
+          <h3 className="font-medium mb-3 text-sm">
+            {format(selected, "EEEE d MMMM", { locale: nl })}
+          </h3>
+          {selectedEvents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Geen afspraken op deze dag.</p>
+          ) : (
+            <div className="space-y-2">
+              {selectedEvents.map(e => (
+                <Card key={e.id} className="p-3 flex items-center gap-3 group">
+                  <div className={cn('w-2.5 h-2.5 rounded-full shrink-0', colorMap[e.color] || 'bg-primary')} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{e.title}</p>
+                    {(e.time || e.description) && (
+                      <p className="text-xs text-muted-foreground truncate">{e.time}{e.time && e.description ? ' · ' : ''}{e.description}</p>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost" size="icon"
+                    style={{ minHeight: '44px', minWidth: '44px', userSelect: 'none' }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={() => deleteEvent.mutate(e.id)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
