@@ -1,0 +1,80 @@
+import React, { useState } from 'react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus } from 'lucide-react';
+
+export default function AddSleepDialog({ childId, date, onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({
+    bedtime: '20:00', wake_time: '07:00', nap_start: '', nap_end: '', quality: 'good', notes: ''
+  });
+
+  const handleSubmit = () => {
+    onAdd({ ...form, child_id: childId, date });
+    setForm({ bedtime: '20:00', wake_time: '07:00', nap_start: '', nap_end: '', quality: 'good', notes: '' });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-1.5">
+          <Plus className="w-4 h-4" /> Slaap toevoegen
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-heading">Slaap registreren</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Bedtijd</Label>
+              <Input type="time" value={form.bedtime} onChange={(e) => setForm({...form, bedtime: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Wakker</Label>
+              <Input type="time" value={form.wake_time} onChange={(e) => setForm({...form, wake_time: e.target.value})} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Dutje start</Label>
+              <Input type="time" value={form.nap_start} onChange={(e) => setForm({...form, nap_start: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Dutje eind</Label>
+              <Input type="time" value={form.nap_end} onChange={(e) => setForm({...form, nap_end: e.target.value})} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Slaapkwaliteit</Label>
+            <Select value={form.quality} onValueChange={(v) => setForm({...form, quality: v})}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="great">⭐ Uitstekend</SelectItem>
+                <SelectItem value="good">😊 Goed</SelectItem>
+                <SelectItem value="okay">😐 Oké</SelectItem>
+                <SelectItem value="poor">😫 Slecht</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Notities</Label>
+            <Textarea value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})} placeholder="Bijv. wakker geworden om 3u..." rows={2} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Annuleren</Button>
+          <Button onClick={handleSubmit}>Opslaan</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
