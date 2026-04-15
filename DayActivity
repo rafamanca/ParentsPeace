@@ -1,0 +1,104 @@
+{
+  "name": "DayActivity",
+  "type": "object",
+  "properties": {
+    "child_id": {
+      "type": "string",
+      "description": "ID of the child this activity is for"
+    },
+    "title": {
+      "type": "string",
+      "description": "Title of the activity"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the activity"
+    },
+    "start_time": {
+      "type": "string",
+      "description": "Start time (HH:MM format)"
+    },
+    "end_time": {
+      "type": "string",
+      "description": "End time (HH:MM format)"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "school",
+        "sport",
+        "play",
+        "meal",
+        "rest",
+        "creative",
+        "chores",
+        "other"
+      ],
+      "default": "play",
+      "description": "Category of the activity"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the activity is completed"
+    }
+  },
+  "required": [
+    "title",
+    "date",
+    "child_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": {
+          "$in": [
+            "admin",
+            "user"
+          ]
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
