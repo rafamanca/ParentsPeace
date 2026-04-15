@@ -1,0 +1,158 @@
+import React, { useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Send, Loader2, Leaf, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import PageHeader from '@/components/shared/PageHeader';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const suggestedQuestions = [
+  "Hoe leer ik mijn kind om zelfstandig te spelen?",
+  "Mijn kind wil niet naar bed, wat kan ik doen?",
+  "Hoeveel schermtijd is oké voor een 6-jarige?",
+  "Hoe ga ik om met driftbuien bij een peuter?",
+];
+
+export default function Coach() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const sendMessage = async (text) => {
+    const userMsg = text || input.trim();
+    if (!userMsg) return;
+
+    const newMessages = [...messages, { role: 'user', content: userMsg }];
+    setMessages(newMessages);
+    setInput('');
+    setLoading(true);
+
+    const conversationHistory = newMessages.map(m => `${m.role === 'user' ? 'Ouder' : 'Coach'}: ${m.content}`).join('\n');
+
+    const response = await base44.integrations.Core.InvokeLLM({
+      prompt: `Je bent PeaceParent Coach, een warme en deskundige opvoedcoach. Je helpt ouders met praktische, 
+rustgevende adviezen. Je antwoorden zijn altijd in het Nederlands, empathisch, en gericht op het brengen van rust.
+Geef concrete tips die direct toepasbaar zijn. Houd antwoorden beknopt maar helpend (max 200 woorden).
+
+Gesprek tot nu toe:
+${conversationHistory}
+
+Geef een behulpzaam antwoord:`,
+    });
+
+    setMessages([...newMessages, { role: 'assistant', content: response }]);
+    setLoading(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-7rem)] md:h-[calc(100vh-4rem)]">
+      <PageHeader title="AI Opvoed-coach" subtitle="Stel je opvoedvragen en krijg persoonlijk advies" />
+
+      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <Leaf className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="font-heading text-xl font-semibold mb-2">Hallo! 👋</h2>
+            <p className="text-muted-foreground text-sm text-center mb-6 max-w-md">
+              Ik ben je persoonlijke opvoedcoach. Stel me een vraag over opvoeding, slaap, gedrag, of wat dan ook.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 w-full max-w-lg">
+              {suggestedQuestions.map((q, i) => (
+                <Button
+                  key={i}
+                  variant="outline"
+                  className="text-left h-auto py-3 px-4 text-sm whitespace-normal justify-start"
+                  onClick={() => sendMessage(q)}
+                >
+                  {q}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <AnimatePresence>
+          {messages.map((msg, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              {msg.role === 'assistant' && (
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Leaf className="w-4 h-4 text-primary" />
+                </div>
+              )}
+              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                msg.role === 'user'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card border border-border'
+              }`}>
+                {msg.role === 'user' ? (
+                  <p className="text-sm">{msg.content}</p>
+                ) : (
+                  <div className="text-sm prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                )}
+              </div>
+              {msg.role === 'user' && (
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {loading && (
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Leaf className="w-4 h-4 text-primary" />
+            </div>
+            <Card className="px-4 py-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Even nadenken...
+              </div>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-border pt-4 mt-auto">
+        <div className="flex gap-2">
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Stel je vraag..."
+            className="resize-none min-h-[2.5rem] max-h-32"
+            rows={1}
+          />
+          <Button
+            onClick={() => sendMessage()}
+            disabled={!input.trim() || loading}
+            size="icon"
+            className="shrink-0"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
