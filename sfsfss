@@ -1,0 +1,132 @@
+import React, { useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Heart, Sparkles, Loader2 } from 'lucide-react';
+import PageHeader from '@/components/shared/PageHeader';
+
+const categoryLabels = {
+  independent_play: '🧩 Zelfstandig spelen',
+  calm_down: '🧘 Kalmeren',
+  routine: '📋 Routine',
+  creativity: '🎨 Creativiteit',
+  outdoor: '🌳 Buiten',
+  social: '🤝 Sociaal',
+};
+
+const ageLabels = {
+  '0-2': '0-2 jaar',
+  '3-5': '3-5 jaar',
+  '6-8': '6-8 jaar',
+  '9-12': '9-12 jaar',
+  all: 'Alle leeftijden',
+};
+
+export default function Tips() {
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState('all');
+  const [generating, setGenerating] = useState(false);
+
+  const { data: tips = [] } = useQuery({
+    queryKey: ['tips'],
+    queryFn: () => base44.entities.Tip.list('-created_date', 50),
+  });
+
+  const toggleFavorite = useMutation({
+    mutationFn: (tip) => base44.entities.Tip.update(tip.id, { is_favorite: !tip.is_favorite }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tips'] }),
+  });
+
+  const generateTips = async () => {
+    setGenerating(true);
+    const res = await base44.integrations.Core.InvokeLLM({
+      prompt: `Genereer 3 praktische, creatieve tips voor ouders om kinderen zelfstandig bezig te houden. 
+      De tips moeten in het Nederlands zijn, specifiek en direct toepasbaar.
+      Varieer in leeftijdscategorieën en type activiteit.`,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          tips: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                content: { type: "string" },
+                age_range: { type: "string", enum: ["0-2", "3-5", "6-8", "9-12", "all"] },
+                category: { type: "string", enum: ["independent_play", "calm_down", "routine", "creativity", "outdoor", "social"] }
+              }
+            }
+          }
+        }
+      }
+    });
+    if (res.tips) {
+      await base44.entities.Tip.bulkCreate(res.tips);
+      queryClient.invalidateQueries({ queryKey: ['tips'] });
+    }
+    setGenerating(false);
+  };
+
+  const filteredTips = filter === 'all'
+    ? tips
+    : filter === 'favorites'
+      ? tips.filter(t => t.is_favorite)
+      : tips.filter(t => t.category === filter);
+
+  return (
+    <div>
+      <PageHeader title="Tips & Inspiratie" subtitle="Ideeën om kinderen zelfstandig bezig te houden">
+        <Button onClick={generateTips} disabled={generating} className="gap-2">
+          {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          Genereer tips
+        </Button>
+      </PageHeader>
+
+      <Tabs value={filter} onValueChange={setFilter} className="mb-6">
+        <TabsList className="flex-wrap h-auto gap-1 bg-transparent p-0">
+          <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full text-xs px-3 py-1.5">Alle</TabsTrigger>
+          <TabsTrigger value="favorites" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full text-xs px-3 py-1.5">❤️ Favorieten</TabsTrigger>
+          {Object.entries(categoryLabels).map(([key, label]) => (
+            <TabsTrigger key={key} value={key} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full text-xs px-3 py-1.5">
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      {filteredTips.length === 0 ? (
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground mb-2">Nog geen tips beschikbaar</p>
+          <p className="text-sm text-muted-foreground">Klik op "Genereer tips" om AI-tips te ontvangen.</p>
+        </Card>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {filteredTips.map((tip) => (
+            <Card key={tip.id} className="p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="font-medium text-sm">{tip.title}</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 h-7 w-7"
+                  onClick={() => toggleFavorite.mutate(tip)}
+                >
+                  <Heart className={`w-4 h-4 ${tip.is_favorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{tip.content}</p>
+              <div className="flex gap-2 flex-wrap">
+                <Badge variant="outline" className="text-xs">{categoryLabels[tip.category]}</Badge>
+                <Badge variant="secondary" className="text-xs">{ageLabels[tip.age_range]}</Badge>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
