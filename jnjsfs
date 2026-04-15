@@ -1,0 +1,99 @@
+import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
+import { nl } from 'date-fns/locale';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Shield } from 'lucide-react';
+
+import DailyCheckIn from '@/components/home/DailyCheckIn';
+import StreakCard from '@/components/home/StreakCard';
+import QuickTools from '@/components/home/QuickTools';
+import NotificationBanner from '@/components/home/NotificationBanner';
+import MoodHistory from '@/components/home/MoodHistory';
+import InviteDialog from '@/components/home/InviteDialog';
+import { Button } from '@/components/ui/button';
+import { Users } from 'lucide-react';
+
+const today = format(new Date(), 'yyyy-MM-dd');
+
+export default function Home() {
+  const [user, setUser] = useState(null);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    base44.auth.me().then(setUser).catch(() => {});
+  }, []);
+
+  const { data: checkIns = [] } = useQuery({
+    queryKey: ['checkins', user?.email],
+    queryFn: () => base44.entities.CheckIn.filter({ user_email: user.email }, '-date', 30),
+    enabled: !!user?.email,
+  });
+
+  const todayCheckIn = checkIns.find(c => c.date === today) || null;
+
+  const { mutate: submitCheckIn, isPending: isSubmitting } = useMutation({
+    mutationFn: ({ mood, note }) =>
+      base44.entities.CheckIn.create({ user_email: user.email, mood, note, date: today }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['checkins', user?.email] }),
+  });
+
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Goedemorgen';
+    if (h < 18) return 'Goedemiddag';
+    return 'Goedenavond';
+  };
+
+  return (
+    <div className="max-w-xl mx-auto space-y-6 pb-6">
+
+      {/* Greeting */}
+      <div className="flex items-center justify-between pt-2">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold">
+            {greeting()}{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''} 👋
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {format(new Date(), 'EEEE d MMMM', { locale: nl })}
+          </p>
+        </div>
+        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+          <Shield className="w-4.5 h-4.5 w-[18px] h-[18px] text-primary-foreground" />
+        </div>
+      </div>
+
+      {/* Notification banner */}
+      <NotificationBanner />
+
+      {/* Daily check-in */}
+      <DailyCheckIn
+        todayCheckIn={todayCheckIn}
+        onSubmit={submitCheckIn}
+        isSubmitting={isSubmitting}
+      />
+
+      {/* Streak */}
+      {checkIns.length > 0 && <StreakCard checkIns={checkIns} />}
+
+      {/* Mood history */}
+      <MoodHistory checkIns={checkIns} />
+
+      {/* Quick tools */}
+      <QuickTools />
+
+      {/* Invite co-parent */}
+      <div className="rounded-2xl bg-muted/40 border border-border p-5 text-center space-y-3">
+        <p className="font-heading font-semibold text-base">Nodig je co-ouder uit</p>
+        <p className="text-xs text-muted-foreground">Verstuur een uitnodiging zodat jullie samen kunnen communiceren.</p>
+        <InviteDialog>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Users className="w-4 h-4" />
+            Uitnodigen
+          </Button>
+        </InviteDialog>
+      </div>
+
+    </div>
+  );
+}
