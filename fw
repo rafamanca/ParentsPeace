@@ -1,0 +1,49 @@
+import React, { useMemo } from 'react';
+import { Card } from '@/components/ui/card';
+import { Flame, TrendingUp } from 'lucide-react';
+
+export default function StreakCard({ checkIns }) {
+  // Calculate current streak (consecutive days)
+  const streak = React.useMemo(() => {
+    if (!checkIns?.length) return 0;
+    const dates = checkIns
+      .map(c => c.date)
+      .sort((a, b) => b.localeCompare(a)); // newest first
+
+    let count = 0;
+    let cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+
+    for (const d of dates) {
+      const day = new Date(d + 'T00:00:00');
+      const diff = Math.round((cursor - day) / 86400000);
+      if (diff === 0 || diff === count) {
+        count++;
+        cursor = day;
+      } else {
+        break;
+      }
+    }
+    return count;
+  }, [checkIns]);
+
+  const total = checkIns?.length ?? 0;
+
+  return (
+    <Card className="p-5 flex items-center gap-4">
+      <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
+        <Flame className="w-6 h-6 text-orange-500" />
+      </div>
+      <div className="flex-1">
+        <p className="text-xs text-muted-foreground">Huidige streak</p>
+        <p className="text-2xl font-bold font-heading">{streak} <span className="text-sm font-normal text-muted-foreground">dag{streak !== 1 ? 'en' : ''}</span></p>
+      </div>
+      <div className="text-right">
+        <div className="flex items-center gap-1 text-muted-foreground text-xs">
+          <TrendingUp className="w-3.5 h-3.5" />
+          <span>{total} totaal</span>
+        </div>
+      </div>
+    </Card>
+  );
+}
