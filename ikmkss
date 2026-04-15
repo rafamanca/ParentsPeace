@@ -1,0 +1,104 @@
+import React, { useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { format, addDays, subDays } from 'date-fns';
+import { nl } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import PageHeader from '@/components/shared/PageHeader';
+import ChildSelector from '@/components/shared/ChildSelector';
+import AddActivityDialog from '@/components/planner/AddActivityDialog';
+import ActivityItem from '@/components/planner/ActivityItem';
+
+export default function Planner() {
+  const queryClient = useQueryClient();
+  const [date, setDate] = useState(new Date());
+  const [selectedChild, setSelectedChild] = useState(null);
+  const dateStr = format(date, 'yyyy-MM-dd');
+
+  const { data: children = [] } = useQuery({
+    queryKey: ['children'],
+    queryFn: () => base44.entities.Child.list(),
+  });
+
+  // Auto-select first child
+  React.useEffect(() => {
+    if (children.length > 0 && !selectedChild) {
+      setSelectedChild(children[0].id);
+    }
+  }, [children, selectedChild]);
+
+  const { data: activities = [] } = useQuery({
+    queryKey: ['activities', dateStr, selectedChild],
+    queryFn: () => {
+      if (!selectedChild) return [];
+      return base44.entities.DayActivity.filter({ date: dateStr, child_id: selectedChild });
+    },
+    enabled: !!selectedChild,
+  });
+
+  const createActivity = useMutation({
+    mutationFn: (data) => base44.entities.DayActivity.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['activities'] }),
+  });
+
+  const toggleActivity = useMutation({
+    mutationFn: (activity) => base44.entities.DayActivity.update(activity.id, { completed: !activity.completed }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['activities'] }),
+  });
+
+  const deleteActivity = useMutation({
+    mutationFn: (id) => base44.entities.DayActivity.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['activities'] }),
+  });
+
+  const sortedActivities = [...activities].sort((a, b) => {
+    if (!a.start_time) return 1;
+    if (!b.start_time) return -1;
+    return a.start_time.localeCompare(b.start_time);
+  });
+
+  return (
+    <div>
+      <PageHeader title="Dagplanning" subtitle="Plan de dag van je kinderen">
+        {selectedChild && (
+          <AddActivityDialog childId={selectedChild} date={dateStr} onAdd={createActivity.mutate} />
+        )}
+      </PageHeader>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <ChildSelector children={children} selectedChildId={selectedChild} onSelect={setSelectedChild} />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setDate(subDays(date, 1))}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <div className="text-sm font-medium min-w-32 text-center">
+            {format(date, "EEEE d MMM", { locale: nl })}
+          </div>
+          <Button variant="outline" size="icon" onClick={() => setDate(addDays(date, 1))}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {sortedActivities.length === 0 ? (
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground mb-1">Geen activiteiten gepland</p>
+          <p className="text-sm text-muted-foreground">Voeg een activiteit toe om de dag te structureren.</p>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {sortedActivities.map((activity) => (
+            <ActivityItem
+              key={activity.id}
+              activity={activity}
+              onToggle={toggleActivity.mutate}
+              onDelete={deleteActivity.mutate}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
