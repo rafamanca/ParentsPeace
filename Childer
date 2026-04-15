@@ -1,0 +1,67 @@
+import React, { useState } from 'react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus } from 'lucide-react';
+
+export default function AddChildDialog({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('');
+  const [color, setColor] = useState('sage');
+
+  const handleSubmit = () => {
+    if (!name.trim()) return;
+    onAdd({ name: name.trim(), age: age ? parseInt(age) : undefined, avatar_color: color });
+    setName('');
+    setAge('');
+    setColor('sage');
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="gap-2">
+          <Plus className="w-4 h-4" /> Kind toevoegen
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-heading">Nieuw kind toevoegen</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="name">Naam</Label>
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Naam van je kind" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="age">Leeftijd</Label>
+            <Input id="age" type="number" min="0" max="18" value={age} onChange={(e) => setAge(e.target.value)} placeholder="Leeftijd" />
+          </div>
+          <div className="space-y-2">
+            <Label>Kleur</Label>
+            <Select value={color} onValueChange={setColor}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sage">🌿 Sage</SelectItem>
+                <SelectItem value="lavender">💜 Lavendel</SelectItem>
+                <SelectItem value="peach">🍑 Peach</SelectItem>
+                <SelectItem value="sky">🩵 Hemelsblauw</SelectItem>
+                <SelectItem value="rose">🌸 Roze</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Annuleren</Button>
+          <Button onClick={handleSubmit} disabled={!name.trim()}>Toevoegen</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
