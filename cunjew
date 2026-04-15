@@ -1,0 +1,41 @@
+import React from 'react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
+
+const avatarColors = {
+  sage: 'bg-primary/15 text-primary border-primary/20',
+  lavender: 'bg-accent text-accent-foreground border-accent',
+  peach: 'bg-orange-50 text-orange-600 border-orange-200',
+  sky: 'bg-blue-50 text-blue-600 border-blue-200',
+  rose: 'bg-pink-50 text-pink-600 border-pink-200',
+};
+
+export default function ChildCard({ child, activitiesCount, onDelete }) {
+  const colors = avatarColors[child.avatar_color] || avatarColors.sage;
+
+  return (
+    <Card className="p-4 hover:shadow-md transition-shadow group">
+      <div className="flex items-center gap-3">
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg font-semibold border ${colors}`}>
+          {child.name[0].toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium truncate">{child.name}</h3>
+          <p className="text-xs text-muted-foreground">
+            {child.age ? `${child.age} jaar` : 'Leeftijd niet opgegeven'} · {activitiesCount} activiteiten vandaag
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+          onClick={() => onDelete(child.id)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </Card>
+  );
+}
