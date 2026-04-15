@@ -1,0 +1,171 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { nl } from 'date-fns/locale';
+import { Plus, Trash2, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
+import MobileSelect from '@/components/shared/MobileSelect';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import PullToRefreshIndicator from '@/components/shared/PullToRefreshIndicator';
+
+const categories = {
+  general: { label: 'Algemeen', color: 'bg-slate-100 text-slate-600' },
+  health: { label: 'Gezondheid', color: 'bg-red-50 text-red-600' },
+  school: { label: 'School', color: 'bg-blue-50 text-blue-600' },
+  agreement: { label: 'Afspraak', color: 'bg-green-50 text-green-600' },
+  incident: { label: 'Incident', color: 'bg-orange-50 text-orange-600' },
+  other: { label: 'Overig', color: 'bg-purple-50 text-purple-600' },
+};
+
+function AddLogDialog({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ title: '', content: '', category: 'general' });
+  const [user, setUser] = useState(null);
+
+  useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
+
+  const handleAdd = () => {
+    onAdd({ ...form, author_email: user?.email || '', author_name: user?.full_name || user?.email || 'Ouder' });
+    setForm({ title: '', content: '', category: 'general' });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-1.5"><Plus className="w-4 h-4" />Notitie</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle className="font-heading">Nieuwe lognotitie</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5">
+            <Label>Titel</Label>
+            <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Korte beschrijving" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Categorie</Label>
+            <MobileSelect
+              value={form.category}
+              onValueChange={v => setForm({ ...form, category: v })}
+              placeholder="Categorie"
+              options={Object.entries(categories).map(([k, v]) => ({ value: k, label: v.label }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Aantekening</Label>
+            <Textarea value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} placeholder="Schrijf hier je notitie..." rows={4} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Annuleren</Button>
+          <Button disabled={!form.title || !form.content} onClick={handleAdd}>Opslaan</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function Logbook() {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [filterCat, setFilterCat] = useState('all');
+
+  const { data: entries = [] } = useQuery({
+    queryKey: ['logentries'],
+    queryFn: () => base44.entities.LogEntry.list('-created_date', 100),
+  });
+
+  const createEntry = useMutation({
+    mutationFn: d => base44.entities.LogEntry.create(d),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['logentries'] }),
+  });
+
+  const deleteEntry = useMutation({
+    mutationFn: id => base44.entities.LogEntry.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['logentries'] }),
+  });
+
+  const filtered = entries.filter(e => {
+    const matchSearch = !search || e.title.toLowerCase().includes(search.toLowerCase()) || e.content.toLowerCase().includes(search.toLowerCase());
+    const matchCat = filterCat === 'all' || e.category === filterCat;
+    return matchSearch && matchCat;
+  });
+
+  const pageRef = useRef(null);
+  const { pullY } = usePullToRefresh({
+    onRefresh: () => queryClient.invalidateQueries({ queryKey: ['logentries'] }),
+    containerRef: pageRef,
+  });
+
+  return (
+    <div ref={pageRef}>
+      <PullToRefreshIndicator pullY={pullY} />
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold">Logboek</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Alles wordt opgeslagen — altijd terug te vinden</p>
+        </div>
+        <AddLogDialog onAdd={createEntry.mutate} />
+      </div>
+
+      <div className="flex gap-2 mb-5 flex-wrap">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Zoeken..." className="pl-9" />
+        </div>
+        <MobileSelect
+          value={filterCat}
+          onValueChange={setFilterCat}
+          placeholder="Alle categorieën"
+          triggerClassName="w-40"
+          options={[
+            { value: 'all', label: 'Alle categorieën' },
+            ...Object.entries(categories).map(([k, v]) => ({ value: k, label: v.label })),
+          ]}
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">Geen notities gevonden.</p>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(entry => {
+            const cat = categories[entry.category] || categories.general;
+            return (
+              <Card key={entry.id} className="p-4 group hover:shadow-sm transition-shadow">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-medium text-sm">{entry.title}</h3>
+                    <Badge variant="secondary" className={cn('text-xs', cat.color)}>{cat.label}</Badge>
+                  </div>
+                  <Button
+                    variant="ghost" size="icon"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => deleteEntry.mutate(entry.id)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{entry.content}</p>
+                <p className="text-xs text-muted-foreground mt-3 pt-2 border-t border-border flex justify-between">
+                  <span>{entry.author_name || entry.author_email}</span>
+                  <span>{format(new Date(entry.created_date), "d MMM yyyy 'om' HH:mm", { locale: nl })}</span>
+                </p>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
