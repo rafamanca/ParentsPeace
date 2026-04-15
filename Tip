@@ -1,0 +1,75 @@
+{
+  "name": "Tip",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the tip"
+    },
+    "content": {
+      "type": "string",
+      "description": "Full tip content"
+    },
+    "age_range": {
+      "type": "string",
+      "enum": [
+        "0-2",
+        "3-5",
+        "6-8",
+        "9-12",
+        "all"
+      ],
+      "default": "all",
+      "description": "Target age range"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "independent_play",
+        "calm_down",
+        "routine",
+        "creativity",
+        "outdoor",
+        "social"
+      ],
+      "default": "independent_play",
+      "description": "Tip category"
+    },
+    "is_favorite": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this tip is favorited"
+    }
+  },
+  "required": [
+    "title",
+    "content"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": {
+          "$in": [
+            "admin",
+            "user"
+          ]
+        }
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
