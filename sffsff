@@ -1,0 +1,79 @@
+import React, { useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { format, subDays } from 'date-fns';
+import { nl } from 'date-fns/locale';
+import { Card } from '@/components/ui/card';
+import PageHeader from '@/components/shared/PageHeader';
+import ChildSelector from '@/components/shared/ChildSelector';
+import AddSleepDialog from '@/components/sleep/AddSleepDialog';
+import SleepCard from '@/components/sleep/SleepCard';
+
+export default function Sleep() {
+  const queryClient = useQueryClient();
+  const [selectedChild, setSelectedChild] = useState(null);
+
+  const { data: children = [] } = useQuery({
+    queryKey: ['children'],
+    queryFn: () => base44.entities.Child.list(),
+  });
+
+  React.useEffect(() => {
+    if (children.length > 0 && !selectedChild) {
+      setSelectedChild(children[0].id);
+    }
+  }, [children, selectedChild]);
+
+  const { data: sleepEntries = [] } = useQuery({
+    queryKey: ['sleep', selectedChild],
+    queryFn: () => {
+      if (!selectedChild) return [];
+      return base44.entities.SleepSchedule.filter({ child_id: selectedChild }, '-date', 14);
+    },
+    enabled: !!selectedChild,
+  });
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  const createSleep = useMutation({
+    mutationFn: (data) => base44.entities.SleepSchedule.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sleep'] }),
+  });
+
+  const deleteSleep = useMutation({
+    mutationFn: (id) => base44.entities.SleepSchedule.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sleep'] }),
+  });
+
+  return (
+    <div>
+      <PageHeader title="Slaapschema's" subtitle="Houd de slaap van je kinderen bij">
+        {selectedChild && (
+          <AddSleepDialog childId={selectedChild} date={today} onAdd={createSleep.mutate} />
+        )}
+      </PageHeader>
+
+      <div className="mb-6">
+        <ChildSelector children={children} selectedChildId={selectedChild} onSelect={setSelectedChild} />
+      </div>
+
+      {sleepEntries.length === 0 ? (
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground mb-1">Nog geen slaapregistraties</p>
+          <p className="text-sm text-muted-foreground">Begin met het bijhouden van slaaptijden.</p>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {sleepEntries.map((entry) => (
+            <div key={entry.id}>
+              <p className="text-xs text-muted-foreground mb-1.5 font-medium">
+                {format(new Date(entry.date), "EEEE d MMM", { locale: nl })}
+              </p>
+              <SleepCard sleep={entry} onDelete={deleteSleep.mutate} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
