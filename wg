@@ -1,0 +1,77 @@
+import React, { useState } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { cn } from '@/lib/utils';
+
+/**
+ * MobileSelect — uses a bottom-sheet Drawer on mobile, standard Select on desktop.
+ * Props mirror a simplified Radix Select:
+ *   value, onValueChange, placeholder, options: [{value, label}]
+ *   triggerClassName
+ */
+export default function MobileSelect({ value, onValueChange, placeholder, options = [], triggerClassName }) {
+  const [open, setOpen] = useState(false);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
+  const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
+
+  if (!isMobile) {
+    return (
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger className={triggerClassName}>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map(o => (
+            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{ minHeight: '44px', userSelect: 'none', WebkitUserSelect: 'none' }}
+        className={cn(
+          'flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring',
+          triggerClassName
+        )}
+      >
+        <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{selectedLabel}</span>
+        <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <Drawer open={open} onOpenChange={setOpen}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle className="font-heading">{placeholder || 'Selecteer'}</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-6 space-y-1" style={{ paddingBottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))' }}>
+            {options.map(o => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => { onValueChange(o.value); setOpen(false); }}
+                style={{ minHeight: '48px', userSelect: 'none', WebkitUserSelect: 'none' }}
+                className={cn(
+                  'w-full flex items-center px-4 rounded-xl text-sm font-medium transition-colors',
+                  value === o.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted text-foreground'
+                )}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </DrawerContent>
+      </Drawer>
+    </>
+  );
+}
