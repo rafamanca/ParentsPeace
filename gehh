@@ -1,0 +1,49 @@
+import React, { useState, useEffect } from 'react';
+import { Bell, BellOff, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+export default function NotificationBanner() {
+  const [status, setStatus] = useState(null); // null | 'default' | 'granted' | 'denied' | 'unsupported'
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!('Notification' in window)) { setStatus('unsupported'); return; }
+    setStatus(Notification.permission);
+    if (localStorage.getItem('notif-banner-dismissed')) setDismissed(true);
+  }, []);
+
+  const request = async () => {
+    const result = await Notification.requestPermission();
+    setStatus(result);
+    if (result === 'granted') {
+      new Notification('ParentsPeace 💙', { body: 'Notificaties ingeschakeld! Je ontvangt dagelijkse reminders.' });
+    }
+  };
+
+  const dismiss = () => {
+    localStorage.setItem('notif-banner-dismissed', '1');
+    setDismissed(true);
+  };
+
+  if (dismissed || status === 'granted' || status === 'unsupported' || status === null) return null;
+  if (status === 'denied') return null;
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start gap-3">
+      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+        <Bell className="w-4 h-4 text-primary" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">Dagelijkse reminders</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Zet notificaties aan om elke dag aan je check-in herinnerd te worden.</p>
+        <Button size="sm" className="mt-2 h-8 text-xs gap-1.5" onClick={request}>
+          <Bell className="w-3 h-3" />
+          Inschakelen
+        </Button>
+      </div>
+      <button onClick={dismiss} className="text-muted-foreground hover:text-foreground" style={{ minHeight: '28px', minWidth: '28px' }}>
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
