@@ -1,0 +1,52 @@
+{
+  "name": "SleepSchedule",
+  "type": "object",
+  "properties": {
+    "child_id": {
+      "type": "string",
+      "description": "ID of the child"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the sleep entry"
+    },
+    "bedtime": {
+      "type": "string",
+      "description": "Bedtime (HH:MM format)"
+    },
+    "wake_time": {
+      "type": "string",
+      "description": "Wake time (HH:MM format)"
+    },
+    "nap_start": {
+      "type": "string",
+      "description": "Nap start time (HH:MM format)"
+    },
+    "nap_end": {
+      "type": "string",
+      "description": "Nap end time (HH:MM format)"
+    },
+    "quality": {
+      "type": "string",
+      "enum": [
+        "great",
+        "good",
+        "okay",
+        "poor"
+      ],
+      "default": "good",
+      "description": "Sleep quality rating"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes about sleep"
+    }
+  },
+  "required": [
+    "child_id",
+    "date",
+    "bedtime",
+    "wake_time"
+  ]
+}
