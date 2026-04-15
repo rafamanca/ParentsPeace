@@ -1,0 +1,32 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Card } from '@/components/ui/card';
+import { MessageCircle, CalendarDays, BookOpen, HeartHandshake, Brain } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const tools = [
+  { icon: MessageCircle, label: 'Stuur bericht', to: '/chat', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+  { icon: CalendarDays,  label: 'Kalender',      to: '/calendar', color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-950/30' },
+  { icon: BookOpen,      label: 'Logboek',        to: '/logbook', color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-950/30' },
+  { icon: HeartHandshake, label: 'Conflict', desc: 'Stappenplan', to: '/logbook', color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-950/30' },
+];
+
+export default function QuickTools() {
+  return (
+    <div>
+      <h3 className="font-heading font-semibold text-base mb-3">Snelle tools</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {tools.map(t => (
+          <Link key={t.label} to={t.to}>
+            <Card className="p-4 flex flex-col items-center gap-2 text-center hover:shadow-md transition-shadow active:scale-95 transition-transform cursor-pointer">
+              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', t.bg)}>
+                <t.icon className={cn('w-5 h-5', t.color)} />
+              </div>
+              <span className="text-xs font-medium leading-tight">{t.label}</span>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
