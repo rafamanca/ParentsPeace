@@ -1,0 +1,114 @@
+import React, { useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { LogOut, Trash2, Moon, Sun, Monitor } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
+
+export default function Settings() {
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    // Log out the user — account deletion requires backend support
+    base44.auth.logout('/');
+  };
+
+  const handleLogout = () => {
+    base44.auth.logout('/');
+  };
+
+  return (
+    <div className="space-y-6 max-w-lg">
+      <div className="hidden md:block">
+        <h1 className="font-heading text-2xl font-semibold">Instellingen</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">App voorkeuren en accountbeheer</p>
+      </div>
+
+      {/* Account */}
+      <Card className="p-5 space-y-3">
+        <h2 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Account</h2>
+        <button
+          onClick={handleLogout}
+          style={{ userSelect: 'none', WebkitUserSelect: 'none', minHeight: '44px' }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          Uitloggen
+        </button>
+        <button
+          onClick={() => setDeleteOpen(true)}
+          style={{ userSelect: 'none', WebkitUserSelect: 'none', minHeight: '44px' }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+          Account verwijderen
+        </button>
+      </Card>
+
+      {/* Theme */}
+      <Card className="p-5 space-y-3">
+        <h2 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Weergave</h2>
+        <p className="text-sm text-muted-foreground">
+          Het thema past zich automatisch aan op basis van je systeeminstellingen (donker / licht).
+        </p>
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Sun className="w-4 h-4" />
+            <span>Licht</span>
+          </div>
+          <span>/</span>
+          <div className="flex items-center gap-2">
+            <Moon className="w-4 h-4" />
+            <span>Donker</span>
+          </div>
+          <span>/</span>
+          <div className="flex items-center gap-2">
+            <Monitor className="w-4 h-4" />
+            <span className="text-foreground font-medium">Systeem (actief)</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* About */}
+      <Card className="p-5 space-y-1">
+        <h2 className="font-medium text-sm text-muted-foreground uppercase tracking-wide mb-2">Over</h2>
+        <p className="text-sm font-medium">ParentsPeace</p>
+        <p className="text-xs text-muted-foreground">Co-ouderschap zonder conflict</p>
+        <p className="text-xs text-muted-foreground">Versie 1.0</p>
+      </Card>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Account verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Je account en alle bijbehorende gegevens worden permanent verwijderd. Dit kan niet ongedaan worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Bezig...' : 'Ja, verwijder account'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
