@@ -1,0 +1,23 @@
+import React from 'react';
+import { RefreshCw } from 'lucide-react';
+
+export default function PullToRefreshIndicator({ pullY, threshold = 64 }) {
+  const progress = Math.min(pullY / threshold, 1);
+  const ready = progress >= 1;
+
+  if (pullY <= 0) return null;
+
+  return (
+    <div
+      className="fixed top-14 left-0 right-0 flex justify-center z-50 pointer-events-none md:hidden"
+      style={{ transform: `translateY(${pullY * 0.4}px)`, opacity: progress }}
+    >
+      <div className="bg-card border border-border rounded-full p-2 shadow-md">
+        <RefreshCw
+          className={`w-4 h-4 text-primary transition-transform ${ready ? 'animate-spin' : ''}`}
+          style={{ transform: `rotate(${progress * 360}deg)` }}
+        />
+      </div>
+    </div>
+  );
+}
