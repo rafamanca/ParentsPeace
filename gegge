@@ -1,0 +1,40 @@
+import React from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { User } from 'lucide-react';
+
+const avatarColors = {
+  sage: 'bg-primary/15 text-primary',
+  lavender: 'bg-accent text-accent-foreground',
+  peach: 'bg-orange-100 text-orange-600',
+  sky: 'bg-blue-100 text-blue-600',
+  rose: 'bg-pink-100 text-pink-600',
+};
+
+export default function ChildSelector({ children, selectedChildId, onSelect, showAll = false }) {
+  if (!children || children.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">Voeg eerst een kind toe via het startscherm.</p>
+    );
+  }
+
+  return (
+    <Select value={selectedChildId || ''} onValueChange={onSelect}>
+      <SelectTrigger className="w-48">
+        <SelectValue placeholder="Kies een kind" />
+      </SelectTrigger>
+      <SelectContent>
+        {showAll && <SelectItem value="all">Alle kinderen</SelectItem>}
+        {children.map((child) => (
+          <SelectItem key={child.id} value={child.id}>
+            <div className="flex items-center gap-2">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${avatarColors[child.avatar_color] || avatarColors.sage}`}>
+                {child.name[0]}
+              </div>
+              {child.name}
+            </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
